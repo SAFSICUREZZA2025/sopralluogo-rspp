@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rapporto di Sopralluogo – Sicurezza</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{--brand:#0b5fff;--ink:#111827;--muted:#6b7280;--card:#ffffff;--line:#e5e7eb;--bg:#f6f8fb;}
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:1100px;margin:auto;padding:20px}
+  header.app{display:flex;gap:14px;align-items:center;margin:6px 0 16px}
+  header.app img{height:64px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  header.app h1{margin:0;font-size:1.6rem;color:var(--brand)}
+  small.sub{color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .grid{display:grid;gap:12px} @media(min-width:980px){.grid{grid-template-columns:1fr 1fr}}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row>label{display:flex;gap:8px;align-items:center;min-width:240px}
+  input[type="text"],input[type="date"],textarea{padding:10px;border:1px solid var(--line);border-radius:10px}
+  textarea{width:100%;min-height:110px}
+  table{width:100%;border-collapse:collapse;background:#fff}
+  th,td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+  th{background:var(--brand);color:#fff;position:sticky;top:0}
+  td input[type="date"]{width:100%}
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  button{background:var(--brand);color:#fff;border:none;padding:10px 14px;border-radius:10px;cursor:pointer}
+  button.secondary{background:#111827}
+  canvas{border:1px dashed #9ca3af;border-radius:10px;background:#fff}
+  /* login */
+  .login{min-height:100vh;display:grid;place-items:center}
+  .panel{width:min(520px,92vw);background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.10)}
+  .panel h2{margin:0 0 8px;color:var(--brand)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-section" class="login">
+  <div class="panel">
+    <h2>Accesso</h2>
+    <small class="sub">Inserisci le credenziali per accedere</small>
+    <div class="row" style="margin-top:12px">
+      <label>Utente <input type="text" id="username" value="rspp"></label>
+      <label>Password <input type="password" id="password" value="sicurezza2025"></label>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button onclick="login()">Entra</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-section" style="display:none">
+  <div class="wrap">
+    <header class="app">
+      <img src="logo_saf.jpg" alt="Logo" id="logoPreview">
+      <div>
+        <h1>Rapporto di Sopralluogo</h1>
+        <small class="sub">D.Lgs. 81/08 – RSPP</small>
+      </div>
+    </header>
+
+    <div class="card grid">
+      <div>
+        <h3>Dati generali</h3>
+        <div class="row">
+          <label>Sito <input type="text" id="sito" placeholder="Es. Stabilimento Alpha"></label>
+          <label>Data <input type="date" id="data"></label>
+          <label>Datore di Lavoro <input type="text" id="datore"></label>
+          <label>RSPP (int./est.) <input type="text" id="rspp"></label>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <label>Collaboratori/Lavoratori esterni <input type="text" id="collab" placeholder="es. ditte esterne"></label>
+        </div>
+      </div>
+      <div>
+        <h3>Legenda</h3>
+        <div class="card" style="padding:10px;margin:0">
+          <b>SI</b> = conforme &nbsp;|&nbsp; <b>NO</b> = non conforme &nbsp;|&nbsp; <b>N.A.</b> = non applicabile<br>
+          <small class="sub">Se “Valido fino a” è vuoto, nel PDF verrà messo “N.A.” in automatico.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Checklist</h3>
+      <div id="checklist-container"></div>
+    </div>
+
+    <div class="card">
+      <h3>Relazione breve</h3>
+      <textarea id="relazione" placeholder="Annotazioni sintetiche"></textarea>
+    </div>
+
+    <div class="card">
+      <h3>Firme</h3>
+      <div class="row" style="gap:16px;flex-wrap:wrap">
+        <div>
+          <div>Firma RSPP</div>
+          <canvas id="firmaIspettore" width="360" height="120"></canvas><br>
+          <button class="secondary" type="button" onclick="clearFirma('firmaIspettore')">Cancella</button>
+        </div>
+        <div>
+          <div>Firma Datore di Lavoro</div>
+          <canvas id="firmaDatore" width="360" height="120"></canvas><br>
+          <button class="secondary" type="button" onclick="clearFirma('firmaDatore')">Cancella</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card actions">
+      <button onclick="salvaBozza()">💾 Salva bozza</button>
+      <button class="secondary" onclick="caricaBozza()">📂 Carica bozza</button>
+      <button onclick="generaPDF()">📄 Genera PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- pdfMake locale -->
+<script src="pdfmake.min.js"></script>
+<script src="vfs_fonts.js"></script>
+
+<!-- CHECKLIST completa -->
+<script>
+const CHECKS = [
+  {id:'info', lbl:'Effettuata informazione art. 36', date:false},
+  {id:'form_gen_spec', lbl:'Formazione generale/specifica (art. 37) aggiornata', date:true},
+  {id:'addestramento', lbl:'Addestramento (art. 37 comma 5 e art. 73) effettuato', date:false},
+  {id:'preposto', lbl:'Preposto nominato e formato', date:false},
+  {id:'incendio', lbl:'Formazione antincendio presente e aggiornata', date:true},
+  {id:'primo_soccorso', lbl:'Formazione primo soccorso presente e aggiornata', date:true},
+  {id:'schede_addestramento', lbl:'Schede di addestramento firmate', date:false},
+  {id:'registro_antincendio', lbl:'Registro antincendio presente', date:false},
+  {id:'verbali_riunione', lbl:'Verbali riunione periodica presenti (se >15 dip.)', date:false},
+  {id:'piano_emergenza', lbl:'Piano di emergenza e prove effettuate', date:false},
+  {id:'dvr', lbl:'DVR presente e aggiornato', date:true},
+  {id:'rls', lbl:'RLS interno/esterno', date:true},
+  {id:'rspp_int_est', lbl:'RSPP interno/esterno', date:false},
+  {id:'mc', lbl:'Nomina del Medico competente e data di nomina', date:true},
+  {id:'sorv', lbl:'Ultima sorveglianza sanitaria (visite mediche) effettuata in data', date:true},
+  {id:'dpi_consegnati', lbl:'DPI consegnati e utilizzati', date:false},
+  {id:'dpi_foglio_consegna', lbl:'Presenza del foglio di consegna DPI', date:false},
+  {id:'dpi_terza', lbl:'Presenza di DPI di terza categoria', date:false},
+  {id:'addestramento_dpi3', lbl:'Addestramento per DPI di terza categoria, art. 77, effettuato', date:false},
+  {id:'libretti_attrezz', lbl:'Libretti attrezzature presenti (carrelli, PLE, ecc.)', date:false},
+  {id:'estintori', lbl:'Estintori posizionati e accessibili', date:false},
+  {id:'cartellonistica', lbl:'Cartellonistica aggiornata', date:false},
+  {id:'squadra_emergenza', lbl:'Presenza squadra emergenza', date:false},
+  {id:'cpi', lbl:'Presenza del CPI', date:false},
+  {id:'impianto_elettrico', lbl:'Certificato impianto elettrico presente', date:false},
+  {id:'messa_terra', lbl:'Data ultima verifica di messa a terra', date:true},
+  {id:'ventilazione_illuminazione', lbl:'Ventilazione e illuminazione adeguate', date:false},
+  {id:'pulizia_ordine', lbl:'Pulizia e ordine ambienti comuni', date:false},
+  {id:'no_infiammabili_non_protetti', lbl:'Assenza materiali infiammabili non protetti', date:false},
+  {id:'no_cavi_volanti_ostacoli', lbl:'Assenza cavi volanti e ostacoli', date:false},
+  {id:'dpi_indossati', lbl:'DPI indossati correttamente', date:false},
+  {id:'chimici_ok', lbl:'Sostanze chimiche stoccate correttamente', date:false},
+  {id:'chimici_locale', lbl:'Il locale sostanze chimiche è arieggiato costantemente', date:false},
+  {id:'chimici_armadio', lbl:'Presenza di armadio idoneo per lo stoccaggio delle sostanze chimiche', date:false},
+  {id:'chimici_sds', lbl:'Presenza delle schede di sicurezza delle sostanze chimiche a disposizione dei lavoratori', date:false},
+  {id:'carrelli', lbl:'Presenza di carrelli elevatori', date:false},
+  {id:'formazione_carrelli', lbl:'Formazione per l’addetto all’uso dei carrelli elevatori', date:true},
+  {id:'ricarica_batt', lbl:'Zona ricarica batterie dei carrelli elevatori protetta (esterno) o, se interna, con aerazione costante e cappa d’aspirazione', date:false}
+];
+</script>
+
+<!-- logica -->
+<script src="script.js"></script>
+</body>
+</html>

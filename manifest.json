@@ -1,0 +1,11 @@
+{
+  "name": "Sopralluogo Sicurezza",
+  "short_name": "Sopralluogo",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#004aad",
+  "icons": [
+    { "src": "logo_saf.jpg", "sizes": "192x192", "type": "image/jpeg" }
+  ]
+}
