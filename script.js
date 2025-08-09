@@ -35,7 +35,7 @@ const CHECKS_MAIN = [
   {id:'chimici_sds', lbl:'Schede di sicurezza (SDS) disponibili ai lavoratori', date:false},
   {id:'carrelli', lbl:'Presenza di carrelli elevatori', date:false},
   {id:'formazione_carrelli', lbl:'Formazione per uso carrelli elevatori – valido fino a', date:true},
-  {id:'ricarica_batt', lbl:'Zona ricarica batterie protetta/arieggiata/cappa', date:false}
+  {id:'ricarica_batt', lbl:'Zona ricarica batterie carrelli: protetta/arieggiata/cappa', date:false}
 ];
 
 const CHECKS_SPEC = [
@@ -71,7 +71,7 @@ function login(){
   }else alert('Credenziali errate.');
 }
 
-/* ====== UI ====== */
+/* ====== BUILDER ====== */
 function buildTable(targetId, model){
   const host=document.getElementById(targetId); if(!host) return;
   host.innerHTML='';
@@ -112,10 +112,24 @@ function initSignature(id){
 }
 function clearFirma(id){const c=document.getElementById(id); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height);}
 
-/* ====== SERIALIZE & PDF ====== */
-const LOGO_URL='logo_saf.jpg'; let LOGO_B64=null;
-(async()=>{try{const r=await fetch(LOGO_URL,{cache:'no-store'});if(r.ok){const b=await r.blob();const fr=new FileReader();fr.onload=e=>LOGO_B64=e.target.result;fr.readAsDataURL(b);}}catch(_){}})();
+/* ====== LOGO (sempre anche da PC) ====== */
+const LOGO_URL='logo_saf.jpg';
+let LOGO_B64=null;
+let LOGO_PROMISE=(async()=>{   // carica SEMPRE il logo in base64 (PC e mobile)
+  try{
+    const r=await fetch(LOGO_URL,{cache:'no-store'});
+    if(r.ok){
+      const b=await r.blob();
+      await new Promise(res=>{
+        const fr=new FileReader();
+        fr.onload=e=>{LOGO_B64=e.target.result; res();};
+        fr.readAsDataURL(b);
+      });
+    }
+  }catch(_){}
+})();
 
+/* ====== SERIALIZE & PDF ====== */
 function collect(model){
   const out={checks:{},dates:{}};
   model.forEach(c=>{
@@ -143,10 +157,20 @@ function serialize(){
 }
 function rows(model,data){const a=[['Voce','Risposta','Valido fino a']];model.forEach(c=>a.push([c.lbl,data.checks[c.id]||'',c.date?(data.dates[c.id]||'N.A.'):'N.A.']));return a;}
 
-function generaPDF(){
+/* Dichiarazione rivista */
+const DICHIARAZIONE =
+  'Il Datore di Lavoro dichiara di aver preso visione del presente Rapporto di Sopralluogo, di accettarne e confermarne il contenuto e di impegnarsi a porre rimedio alle eventuali non conformità rilevate nel più breve tempo possibile, in conformità al D.Lgs. 81/08 e s.m.i.\n' +
+  'La firma elettronica apposta di seguito è conforme all’originale ed è resa ai fini di legge ai sensi della normativa vigente.';
+
+async function generaPDF(){
   if(!window.pdfMake) return alert('pdfMake non è caricato.');
+  await LOGO_PROMISE; // assicura il logo anche su PC
+
   const d=serialize();
-  const header=LOGO_B64?{columns:[{image:LOGO_B64,width:60},{text:'Rapporto di Sopralluogo',style:'h1',alignment:'right'}]}:{text:'Rapporto di Sopralluogo',style:'h1'};
+  const header=LOGO_B64
+    ? {columns:[{image:LOGO_B64,width:60},{text:'Rapporto di Sopralluogo',style:'h1',alignment:'right'}]}
+    : {text:'Rapporto di Sopralluogo',style:'h1'};
+
   const dd={
     pageMargins:[28,36,28,36],
     content:[
@@ -157,16 +181,19 @@ function generaPDF(){
       {table:{headerRows:1,widths:['*',80,110],body:rows(CHECKS_MAIN,d.main)},layout:'lightHorizontalLines'},
       {text:'\nValutazioni specifiche',style:'h2',margin:[0,10,0,6]},
       {table:{headerRows:1,widths:['*',80,110],body:rows(CHECKS_SPEC,d.spec)},layout:'lightHorizontalLines'},
-      {text:'\nRelazione',style:'h2'},{text:(d.gen.relazione||'(nessuna)'),margin:[0,0,0,8]},
+      {text:'\nRelazione',style:'h2'},{text:(d.gen.relazione||'(nessuna)'),margin:[0,0,0,10]},
       {text:'Dichiarazione',style:'h2'},
-      {text:'Il datore di lavoro accetta e conferma quanto riportato nel presente rapporto di sopralluogo, con riferimento al D.Lgs. 81/08 e s.m.i.',margin:[0,2,0,10]},
-      {columns:[
-        [{text:'Firma Datore di Lavoro',margin:[0,0,0,4]},(d.gen.sigDatore?{image:d.gen.sigDatore,width:200}:{text:'(non firmato)'})],
-        [{text:'Firma RSPP',margin:[0,0,0,4]},(d.gen.sigRspp?{image:d.gen.sigRspp,width:200}:{text:'(non firmato)'})]
-      ],columnGap:16}
+      {text:DICHIARAZIONE,margin:[0,2,0,14]},
+
+      /* FIRME: Datore SOPRA, RSPP SOTTO (verticale) */
+      { text:'Firma Datore di Lavoro', margin:[0,0,0,4] },
+      (d.gen.sigDatore?{ image:d.gen.sigDatore, width:220 }:{ text:'(non firmato)' }),
+      { text:'\nFirma RSPP', margin:[0,12,0,4] },
+      (d.gen.sigRspp?{ image:d.gen.sigRspp, width:220 }:{ text:'(non firmato)' })
     ],
     styles:{h1:{fontSize:18,bold:true},h2:{fontSize:14,bold:true}}
   };
+
   const nome=`rapporto_sopralluogo_${(d.gen.sito||'sito').replace(/\s+/g,'_')}_${d.gen.data||''}.pdf`;
   pdfMake.createPdf(dd).download(nome);
 }
@@ -195,5 +222,5 @@ window.addEventListener('DOMContentLoaded',init);
 
 /* expose */
 window.login=login; window.generaPDF=generaPDF;
-window.salvaBozza=salvaBozza; window.caricaBozza=caricaBozza;
-window.clearFirma=clearFirma=function(id){const c=document.getElementById(id); if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);}
+window.salvaBozza=salvaBozza; window.caricaBozza=caricaBozza; window.clearFirma=clearFirma;
+
